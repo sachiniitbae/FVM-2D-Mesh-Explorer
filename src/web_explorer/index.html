@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FVM 2D Mesh Explorer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="icon">🌐</span>
+                <h1>FVM 2D Mesh Explorer</h1>
+            </div>
+            <div class="controls">
+                <button id="theme-toggle" class="btn btn-theme" title="Toggle Light/Dark Mode">🌙</button>
+                <button id="zoom-toggle" class="btn btn-secondary" title="Zoom to Area Selection">🔍 Area</button>
+                <label for="file-upload" class="btn btn-primary">
+                    <span>Upload .msh</span>
+                    <input type="file" id="file-upload" accept=".msh" hidden>
+                </label>
+                <button id="reset-view" class="btn btn-secondary">Reset View</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="mesh-viewport">
+                <canvas id="mesh-canvas"></canvas>
+                <div id="overlay-hints" class="hint">
+                    Drag and drop a .msh file here to explore
+                </div>
+                <div id="status-overlay" class="status-overlay hidden">
+                    <div class="status-card">
+                        <div class="spinner"></div>
+                        <h3 id="status-text">Processing Mesh...</h3>
+                        <div class="progress-wrapper">
+                            <div id="progress-bar" class="progress-bar"></div>
+                        </div>
+                        <p id="status-detail" class="small text-muted">Reading file...</p>
+                    </div>
+                </div>
+            </div>
+
+            <aside id="sidebar" class="hidden">
+                <section class="info-section">
+                    <div class="search-container">
+                        <input type="number" id="cell-search-input" placeholder="Search Cell ID..." min="1">
+                        <button id="cell-search-btn" class="btn-icon">🔍</button>
+                    </div>
+                </section>
+
+                <section class="info-section">
+                    <h3>Mesh Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item"><label>Cells</label><span id="stat-cells">-</span></div>
+                        <div class="stat-item"><label>Nodes</label><span id="stat-nodes">-</span></div>
+                        <div class="stat-item"><label>Faces</label><span id="stat-faces">-</span></div>
+                        <div class="stat-item"><label>Internal</label><span id="stat-internal">-</span></div>
+                    </div>
+                </section>
+
+                <section id="selection-details" class="info-section hidden">
+                    <h3>Selection: Cell <span id="cell-id">-</span> (<span id="cell-type">-</span>)</h3>
+                    <div class="detail-group">
+                        <label>Physical Group:</label>
+                        <span id="cell-physical" class="tag accent">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <label>Centroid (X, Y):</label>
+                        <span id="cell-centroid" class="tag">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <label>Nodes (ID & Coordinates):</label>
+                        <ul id="cell-nodes" class="coord-list"></ul>
+                    </div>
+                    <div class="detail-group">
+                        <label>Faces (Owner of) & Midpoints:</label>
+                        <ul id="cell-faces-owner" class="face-list"></ul>
+                    </div>
+                    <div class="detail-group">
+                        <label>Neighbors:</label>
+                        <div id="cell-neighbors" class="tag-container"></div>
+                    </div>
+                </section>
+
+                <section class="instruction-section">
+                    <p class="small text-muted">Click on any element to explore its connectivity.</p>
+                </section>
+            </aside>
+        </main>
+    </div>
+
+    <script src="parser.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

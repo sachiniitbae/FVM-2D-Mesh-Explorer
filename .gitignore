@@ -1,0 +1,22 @@
+# C++ binaries
+bin/
+*.exe
+*.out
+*.app
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Local web artifacts
+.lastMesh
