@@ -47,6 +47,7 @@ let view = {
 
 let selectedCellId = null;
 let interactionMode = 'pan'; // 'pan' or 'zoom'
+let showPhysicalZones = false;
 let zoomArea = {
     active: false,
     start: null,
@@ -64,6 +65,12 @@ function init() {
     resetBtn.addEventListener('click', resetView);
     themeToggle.addEventListener('click', toggleTheme);
     zoomToggleBtn.addEventListener('click', toggleZoomMode);
+    
+    document.getElementById('zones-toggle').addEventListener('click', () => {
+        showPhysicalZones = !showPhysicalZones;
+        document.getElementById('zones-toggle').classList.toggle('active', showPhysicalZones);
+        render();
+    });
 
     const searchInput = document.getElementById('cell-search-input');
     const searchBtn = document.getElementById('cell-search-btn');
@@ -412,10 +419,25 @@ function updateThemeIcon() {
     themeToggle.textContent = isLightMode ? '☀️' : '🌙';
 }
 
+function getZoneColor(name) {
+    if (!name || name === "internal") return null;
+    
+    // Hash-based deterministic color
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const h = Math.abs(hash % 360);
+    const s = 70; // Vibrant saturation
+    const l = isLightMode ? 75 : 35; // Bright for light, darker for dark
+    return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
 function getThemeColors() {
     if (isLightMode) {
         return {
-            mesh: '#d0d7de',
+            mesh: '#8c959f', // Darkened for better contrast on pastel zones
             boundary: '#1a7f37',
             selected: '#0969da',
             neighbor: 'rgba(26, 127, 55, 0.1)',
@@ -543,12 +565,31 @@ function render() {
     const pMax = canvasToWorld(canvas.width / dpr, canvas.height / dpr);
     const margin = (pMax.x - pMin.x) * 0.1;
     const xMin = pMin.x - margin, xMax = pMax.x + margin;
-    const yMin = pMax.y - margin, yMax = pMin.y + margin; // Y is inverted in screen space
+    const yMin = pMax.y - margin, yMax = pMin.y + margin; 
 
-    // Level of Detail (LOD): Skip internal edges if zoomed way out
+    // 1. Draw Physical Zones first (as background)
+    if (showPhysicalZones) {
+        currentMesh.cells.forEach(cell => {
+            if (!cell.physicalName || cell.physicalName === "internal") return;
+            
+            const pts = cell.nodeIds.map(nid => worldToCanvas(currentMesh.nodes.get(nid).x, currentMesh.nodes.get(nid).y));
+            
+            // Viewport Culling
+            const outX = pts.every(p => p.x < 0 || p.x > canvas.width / dpr);
+            const outY = pts.every(p => p.y < 0 || p.y > canvas.height / dpr);
+            if (outX || outY) return;
+
+            ctx.fillStyle = getZoneColor(cell.physicalName);
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.closePath();
+            ctx.fill();
+        });
+    }
+
+    // 2. Batch Mesh Lines
     const isVeryZoomedOut = view.zoom < 0.05;
-
-    // 1. Batch Mesh Lines
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
@@ -565,7 +606,7 @@ function render() {
         if (outX || outY) return;
 
         const path = f.isBoundary ? boundaryPath : internalPath;
-        if (!f.isBoundary && isVeryZoomedOut) return; // LOD
+        if (!f.isBoundary && isVeryZoomedOut) return; 
 
         const c1 = worldToCanvas(p1.x, p1.y);
         const c2 = worldToCanvas(p2.x, p2.y);
@@ -574,19 +615,18 @@ function render() {
         path.lineTo(c2.x, c2.y);
     });
 
-    // Draw Internal Batch
+    // 3. Draw Mesh Skeleton over zones
     ctx.beginPath();
     ctx.strokeStyle = colors.mesh;
     ctx.lineWidth = 1;
     ctx.stroke(internalPath);
 
-    // Draw Boundary Batch
     ctx.beginPath();
     ctx.strokeStyle = colors.boundary;
     ctx.lineWidth = 2;
     ctx.stroke(boundaryPath);
 
-    // 2. Draw Highlight for Selection
+    // 4. Draw Highlight for Selection
     if (selectedCellId) {
         const cell = currentMesh.cells[selectedCellId - 1]; // O(1)
         if (!cell) return;

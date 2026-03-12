@@ -31,6 +31,11 @@ The parser stores these in a `std::vector<Node>`. We use **1-based indexing** to
 ```
 The parser filters for **Type 2 (Triangles)** and **Type 3 (Quads)**. Each element is stored as a `Cell` which knows its nodes and type.
 
+### `$PhysicalNames`
+The parser supports mapping internal IDs to human-readable strings. This is used for:
+- **Boundary Conditions**: Mapping specific edges to names like `inlet`, `outlet`.
+- **Physical Zones**: Assigning material properties or sources to regions like `center_disk` or `petals`.
+
 ---
 
 ## 3. Parallel Sort-Match Algorithm (High Performance)

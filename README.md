@@ -10,6 +10,7 @@ A high-performance, interactive 2D Finite Volume Method (FVM) mesh explorer and 
 - **Parallel Processing**:
   - **C++ Backend**: Utilizes **OpenMP** for near-instant topology building using a high-speed sort-and-match algorithm.
   - **JS Frontend**: Offloads mesh parsing and topology generation to **Web Workers** to keep the UI responsive.
+- **Physical Zone Visualization**: 🎨 Interactive coloring and labeling of physical groups (zones) defined in Gmsh. 
 ## Technical Highlights
 
 - **Face-Based Topology**: Implements standard CFD connectivity (Face-to-Cell, Cell-to-Face, Face-to-Node) used in solvers like OpenFOAM.
@@ -18,7 +19,8 @@ A high-performance, interactive 2D Finite Volume Method (FVM) mesh explorer and 
   - **Universal Hit-Test**: Point-in-polygon selection for any cell (Triangle, Quad, etc.).
   - **Search by ID**: Quickly locate specific elements in massive datasets.
 - **User Interface**:
-  - **Theme Toggle**: High-contrast Dark and Light modes.
+  - **Dynamic Theme Icons**: ☀️/🌙 icons for high-contrast Dark and Light modes.
+  - **Professional Aesthetics**: Minimalist, functional emoji set for intuitive navigation.
   - **High-DPI Support**: Razor-sharp rendering on high-resolution displays.
 - **Multi-Format Support**: Native support for **Gmsh .msh (v2.2)** files.
 
@@ -62,7 +64,9 @@ g++ -O3 -fopenmp src/msh_parser.cpp -o bin/msh_parser
 - **NACA 63-412 Airfoil**: Precise 6-series profile with C-Mesh topology.
 - **Refined Circle**: 0.1M+ cells stress-test for renderer performance.
 - **L-Shaped Channel**: Multi-zone hybrid mesh (Triangles + Quads).
-- **Square**: Simple structured test case.
+- **Five-Pointed Star**: Complex boundary geometry with a central source zone.
+- **Y-Junction (Tuning Fork)**: Multi-branch domain using spline-based curves.
+- **Flower Pattern**: Highly intricate aesthetic mesh with overlapping petal topology.
 
 ## Documentation
 

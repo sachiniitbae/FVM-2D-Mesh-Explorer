@@ -107,7 +107,8 @@ header {
     background-color: var(--border-color);
 }
 
-.btn-secondary.active {
+.btn-secondary.active,
+.btn-primary.active {
     background-color: var(--accent-color);
     border-color: var(--accent-color);
     color: white;
