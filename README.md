@@ -36,7 +36,6 @@ A high-performance, interactive 2D Finite Volume Method (FVM) mesh explorer and 
 ```text
 ├── bin/              # Compiled C++ executables
 ├── docs/             # Technical manuals and topology guides
-├── meshes/           # Sample .msh and .geo files (NACA 63-412, Circle, etc.)
 ├── src/              # Source code
 │   ├── web_explorer/ # Web application (index.html, app.js, mesh_worker.js)
 │   ├── msh_parser.cpp# High-performance C++ parser
@@ -56,10 +55,12 @@ No installation required! Simply open the web interface:
 To build the high-performance CLI tool:
 ```bash
 g++ -O3 -fopenmp src/msh_parser.cpp -o bin/msh_parser
-./bin/msh_parser meshes/naca63412.msh
+./bin/msh_parser ../meshes/naca63412.msh
 ```
 
-## Sample Meshes Included
+## Sample Meshes (Centralized)
+
+Meshes are now centralized in the root `meshes/` directory for project-wide use:
 
 - **NACA 63-412 Airfoil**: Precise 6-series profile with C-Mesh topology.
 - **Refined Circle**: 0.1M+ cells stress-test for renderer performance.
