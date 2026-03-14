@@ -4,6 +4,7 @@ class MshParser {
         this.cells = [];
         this.faces = [];
         this.physicalNames = new Map(); // TagID -> Name
+        this.boundaryElements = new Map(); // EdgeKey -> PhysicalName
     }
 
     async parse(content, onProgress) {
@@ -11,6 +12,7 @@ class MshParser {
         this.cells = [];
         this.faces = [];
         this.physicalNames.clear();
+        this.boundaryElements.clear();
 
         const lines = content.split('\n');
         let i = 0;
@@ -68,6 +70,14 @@ class MshParser {
                             physicalTag: physicalTag,
                             physicalName: this.physicalNames.get(physicalTag) || "internal"
                         });
+                    } else if (type === 1) { // Line element (Boundary)
+                        const nodeIds = parts.slice(nodeStartIndex);
+                        if (nodeIds.length >= 2) {
+                            const v1 = nodeIds[0], v2 = nodeIds[1];
+                            const key = v1 < v2 ? `${v1}-${v2}` : `${v2}-${v1}`;
+                            const name = this.physicalNames.get(physicalTag) || "boundary";
+                            this.boundaryElements.set(key, name);
+                        }
                     }
                 }
             }
@@ -111,7 +121,8 @@ class MshParser {
                         nodes: [v1, v2],
                         owner: cell.id,
                         neighbor: -1,
-                        isBoundary: true
+                        isBoundary: true,
+                        physicalName: this.boundaryElements.get(key) || null
                     });
                     edgeToFace.set(key, fId);
                     cell.faceIds.push(fId);

@@ -42,12 +42,23 @@ let view = {
     offsetY: 0,
     isDragging: false,
     lastMouseX: 0,
-    lastMouseY: 0
+    lastMouseX: 0,
+    lastMouseY: 0,
+    mouseX: 0,
+    mouseY: 0
 };
 
 let selectedCellId = null;
-let interactionMode = 'pan'; // 'pan' or 'zoom'
+let interactionMode = 'pan'; // 'pan', 'zoom', or 'ruler'
 let showPhysicalZones = false;
+let showQualityMap = false;
+let showFaceNormals = false;
+let activePhysicalGroup = null;
+let rulerData = {
+    p1: null,
+    p2: null,
+    active: false
+};
 let zoomArea = {
     active: false,
     start: null,
@@ -69,6 +80,29 @@ function init() {
     document.getElementById('zones-toggle').addEventListener('click', () => {
         showPhysicalZones = !showPhysicalZones;
         document.getElementById('zones-toggle').classList.toggle('active', showPhysicalZones);
+        render();
+    });
+
+    document.getElementById('quality-toggle').addEventListener('click', () => {
+        showQualityMap = !showQualityMap;
+        document.getElementById('quality-toggle').classList.toggle('active', showQualityMap);
+        document.getElementById('quality-legend').classList.toggle('hidden', !showQualityMap);
+        render();
+    });
+
+    document.getElementById('normals-toggle').addEventListener('click', () => {
+        showFaceNormals = !showFaceNormals;
+        document.getElementById('normals-toggle').classList.toggle('active', showFaceNormals);
+        render();
+    });
+
+    document.getElementById('ruler-toggle').addEventListener('click', () => {
+        interactionMode = interactionMode === 'ruler' ? 'pan' : 'ruler';
+        document.getElementById('ruler-toggle').classList.toggle('active', interactionMode === 'ruler');
+        canvas.classList.toggle('crosshair', interactionMode === 'ruler');
+        // Reset ruler points when entering/leaving
+        rulerData.p1 = null;
+        rulerData.p2 = null;
         render();
     });
 
@@ -98,6 +132,11 @@ function init() {
     window.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('wheel', onWheel);
     canvas.addEventListener('click', onClick);
+    canvas.addEventListener('mousemove', (e) => {
+        view.mouseX = e.offsetX;
+        view.mouseY = e.offsetY;
+        render();
+    });
 
     // Drag and drop hints
     document.addEventListener('dragover', (e) => e.preventDefault());
@@ -229,6 +268,7 @@ function finalizeLoad(content, save) {
     // Crucial: Resize canvas AFTER sidebar is visible
     resizeCanvas();
     updateStats();
+    populatePhysicalGroups();
     resetView();
     render();
 
@@ -251,6 +291,94 @@ function updateStats() {
     stats.faces.textContent = currentMesh.faces.length;
     let internal = currentMesh.faces.filter(f => !f.isBoundary).length;
     stats.internal.textContent = internal;
+}
+
+function populatePhysicalGroups() {
+    const list = document.getElementById('physical-groups-list');
+    list.innerHTML = '';
+
+    const cellGroups = new Map();
+    const faceGroups = new Map();
+
+    currentMesh.cells.forEach(c => {
+        if (!c.physicalName || c.physicalName === "internal") return;
+        cellGroups.set(c.physicalName, (cellGroups.get(c.physicalName) || 0) + 1);
+    });
+
+    currentMesh.faces.forEach(f => {
+        if (!f.physicalName || f.physicalName === "internal") return;
+        faceGroups.set(f.physicalName, (faceGroups.get(f.physicalName) || 0) + 1);
+    });
+
+    const createItem = (name, count, type) => {
+        const item = document.createElement('div');
+        item.className = 'tag-item';
+        item.innerHTML = `
+            <div class="tag-info">
+                <span class="tag-type-icon">${type === 'cell' ? '▤' : '▥'}</span>
+                <span class="tag-name">${name}</span>
+            </div>
+            <span class="tag-count">${count}</span>
+        `;
+        item.onclick = () => {
+            if (activePhysicalGroup && activePhysicalGroup.name === name) {
+                activePhysicalGroup = null;
+                item.classList.remove('active');
+            } else {
+                document.querySelectorAll('.tag-item').forEach(i => i.classList.remove('active'));
+                activePhysicalGroup = { name, type };
+                item.classList.add('active');
+            }
+            render();
+        };
+        return item;
+    };
+
+    if (faceGroups.size > 0) {
+        const h = document.createElement('h4');
+        h.textContent = "Boundaries";
+        h.className = "sidebar-subtitle";
+        list.appendChild(h);
+        Array.from(faceGroups.entries()).sort().forEach(([name, count]) => {
+            list.appendChild(createItem(name, count, 'face'));
+        });
+    }
+
+    if (cellGroups.size > 0) {
+        const h = document.createElement('h4');
+        h.textContent = "Cell Zones";
+        h.className = "sidebar-subtitle";
+        list.appendChild(h);
+        Array.from(cellGroups.entries()).sort().forEach(([name, count]) => {
+            list.appendChild(createItem(name, count, 'cell'));
+        });
+    }
+}
+
+function computeCellQuality(cell) {
+    const nodes = cell.nodeIds.map(nid => currentMesh.nodes.get(nid));
+    if (nodes.length < 3) return 1.0;
+
+    // Aspect Ratio Calculation (Max Edge / Min Edge)
+    let maxDist = 0;
+    let minDist = Infinity;
+
+    for (let i = 0; i < nodes.length; i++) {
+        const p1 = nodes[i];
+        const p2 = nodes[(i + 1) % nodes.length];
+        const d = Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+        maxDist = Math.max(maxDist, d);
+        minDist = Math.min(minDist, d);
+    }
+
+    return maxDist / (minDist || 1e-12);
+}
+
+function getQualityColor(ar) {
+    if (ar < 1.5) return '#1a7f37'; // Green
+    if (ar < 3.0) return '#d29922'; // Yellow/Orange
+    if (ar < 6.0) return '#bc4c00'; // Orange/Red
+    return '#cf222e'; // Red
 }
 
 function resetView() {
@@ -325,6 +453,15 @@ function onMouseDown(e) {
         zoomArea.active = true;
         zoomArea.start = canvasToWorld(e.offsetX, e.offsetY);
         zoomArea.end = zoomArea.start;
+    } else if (interactionMode === 'ruler') {
+        const mouse = canvasToWorld(e.offsetX, e.offsetY);
+        if (!rulerData.p1 || (rulerData.p1 && rulerData.p2)) {
+            rulerData.p1 = mouse;
+            rulerData.p2 = null;
+        } else {
+            rulerData.p2 = mouse;
+        }
+        render();
     } else {
         view.isDragging = true;
         view.lastMouseX = e.clientX;
@@ -336,6 +473,9 @@ function onMouseMove(e) {
     if (interactionMode === 'zoom' && zoomArea.active) {
         zoomArea.end = canvasToWorld(e.offsetX, e.offsetY);
         render();
+    } else if (interactionMode === 'ruler' && rulerData.p1 && !rulerData.p2) {
+        // Preview line
+        render(); 
     } else if (view.isDragging) {
         const dx = e.clientX - view.lastMouseX;
         const dy = e.clientY - view.lastMouseY;
@@ -416,7 +556,7 @@ function toggleTheme() {
 }
 
 function updateThemeIcon() {
-    themeToggle.textContent = isLightMode ? '☀️' : '🌙';
+    themeToggle.textContent = isLightMode ? '○' : '◐';
 }
 
 function getZoneColor(name) {
@@ -568,10 +708,8 @@ function render() {
     const yMin = pMax.y - margin, yMax = pMin.y + margin; 
 
     // 1. Draw Physical Zones first (as background)
-    if (showPhysicalZones) {
+    if (showPhysicalZones || showQualityMap || activePhysicalGroup) {
         currentMesh.cells.forEach(cell => {
-            if (!cell.physicalName || cell.physicalName === "internal") return;
-            
             const pts = cell.nodeIds.map(nid => worldToCanvas(currentMesh.nodes.get(nid).x, currentMesh.nodes.get(nid).y));
             
             // Viewport Culling
@@ -579,12 +717,22 @@ function render() {
             const outY = pts.every(p => p.y < 0 || p.y > canvas.height / dpr);
             if (outX || outY) return;
 
-            ctx.fillStyle = getZoneColor(cell.physicalName);
-            ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-            ctx.closePath();
-            ctx.fill();
+            if (showQualityMap) {
+                fillColor = getQualityColor(computeCellQuality(cell));
+            } else if (activePhysicalGroup && activePhysicalGroup.type === 'cell' && cell.physicalName === activePhysicalGroup.name) {
+                fillColor = isLightMode ? 'rgba(9, 105, 218, 0.4)' : 'rgba(88, 166, 255, 0.4)';
+            } else if (showPhysicalZones && cell.physicalName && cell.physicalName !== "internal") {
+                fillColor = getZoneColor(cell.physicalName);
+            }
+
+            if (fillColor) {
+                ctx.fillStyle = fillColor;
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+                ctx.closePath();
+                ctx.fill();
+            }
         });
     }
 
@@ -607,6 +755,20 @@ function render() {
 
         const path = f.isBoundary ? boundaryPath : internalPath;
         if (!f.isBoundary && isVeryZoomedOut) return; 
+
+        // Special: Highlight active boundary group
+        if (activePhysicalGroup && activePhysicalGroup.type === 'face' && f.physicalName === activePhysicalGroup.name) {
+            const c1 = worldToCanvas(p1.x, p1.y);
+            const c2 = worldToCanvas(p2.x, p2.y);
+            ctx.save();
+            ctx.strokeStyle = colors.highlight;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(c1.x, c1.y);
+            ctx.lineTo(c2.x, c2.y);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         const c1 = worldToCanvas(p1.x, p1.y);
         const c2 = worldToCanvas(p2.x, p2.y);
@@ -766,6 +928,240 @@ function render() {
         
         ctx.setLineDash([]);
     }
+
+    // 5. Draw Face Normals
+    if (showFaceNormals) {
+        drawFaceNormals(colors);
+    }
+
+    // 6. Draw Overlays (Axis, Scale, Coordinates, Ruler)
+    drawAxisCompass(colors);
+    drawScaleBar(colors);
+    drawMouseCoordinates(colors);
+    
+    if (interactionMode === 'ruler' || (rulerData.p1 && rulerData.p2)) {
+        drawRuler(colors);
+    }
+}
+
+function drawFaceNormals(colors) {
+    const dpr = window.devicePixelRatio || 1;
+    const arrowLen = 15;
+    
+    ctx.save();
+    ctx.strokeStyle = colors.boundary || '#238636';
+    ctx.lineWidth = 1.5;
+
+    // To prevent clutter, only draw if zoomed in enough
+    if (view.zoom < 20) {
+        ctx.restore();
+        return;
+    }
+
+    currentMesh.faces.forEach(f => {
+        const p1 = currentMesh.nodes.get(f.nodes[0]);
+        const p2 = currentMesh.nodes.get(f.nodes[1]);
+        if (!p1 || !p2) return;
+
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        const mid = worldToCanvas(midX, midY);
+
+        // Viewport Culling
+        if (mid.x < 0 || mid.x > canvas.width / dpr || mid.y < 0 || mid.y > canvas.height / dpr) return;
+
+        // Normal direction (90 degrees to face)
+        // Face vector (p2 - p1)
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        
+        // Perpendicular vector (-dy, dx)
+        const len = Math.sqrt(dx*dx + dy*dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        // FVM convention: Normal points from Owner to Neighbor
+        // We can just draw it pointing "outward" for now
+        const tip = worldToCanvas(midX + nx * (arrowLen/view.zoom), midY + ny * (arrowLen/view.zoom));
+
+        ctx.beginPath();
+        ctx.moveTo(mid.x, mid.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.stroke();
+        
+        const angle = Math.atan2(tip.y - mid.y, tip.x - mid.x);
+        drawArrowHead(tip.x, tip.y, angle, colors.boundary || '#238636');
+    });
+    ctx.restore();
+}
+
+function drawRuler(colors) {
+    const p1 = rulerData.p1;
+    let p2 = rulerData.p2;
+
+    if (!p1) return;
+    
+    // If not locked, use current mouse pos for feedback
+    if (!p2) p2 = canvasToWorld(view.mouseX, view.mouseY);
+
+    const c1 = worldToCanvas(p1.x, p1.y);
+    const c2 = worldToCanvas(p2.x, p2.y);
+
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = colors.highlight || '#fceea7';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(c1.x, c1.y);
+    ctx.lineTo(c2.x, c2.y);
+    ctx.stroke();
+
+    // Crosshairs at endpoints
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    [c1, c2].forEach(p => {
+        ctx.moveTo(p.x - 5, p.y); ctx.lineTo(p.x + 5, p.y);
+        ctx.moveTo(p.x, p.y - 5); ctx.lineTo(p.x, p.y + 5);
+    });
+    ctx.stroke();
+
+    // Labels
+    const dist = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+    const midX = (c1.x + c2.x) / 2;
+    const midY = (c1.y + c2.y) / 2;
+
+    const label = `L: ${dist.toFixed(4)} (dx: ${Math.abs(p2.x-p1.x).toFixed(4)}, dy: ${Math.abs(p2.y-p1.y).toFixed(4)})`;
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    
+    const metrics = ctx.measureText(label);
+    ctx.fillStyle = colors.labelBg;
+    ctx.fillRect(midX - metrics.width/2 - 5, midY - 10, metrics.width + 10, 20);
+    
+    ctx.fillStyle = colors.highlight || '#fceea7';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, midX, midY + 4);
+
+    ctx.restore();
+}
+
+function drawAxisCompass(colors) {
+    const size = 60;
+    const padding = 20;
+    const bottom = canvas.height / (window.devicePixelRatio || 1) - padding;
+    const left = padding + size/2;
+
+    ctx.save();
+    ctx.translate(left, bottom);
+    
+    // Y-Axis (Up)
+    ctx.strokeStyle = colors.highlight || '#fceea7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -size/2);
+    ctx.stroke();
+    
+    // X-Axis (Right)
+    ctx.strokeStyle = colors.selected;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(size/2, 0);
+    ctx.stroke();
+
+    // Arrows
+    drawArrowHead(0, -size/2, -Math.PI/2, colors.highlight || '#fceea7');
+    drawArrowHead(size/2, 0, 0, colors.selected);
+
+    // Labels
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = colors.textPrimary;
+    ctx.textAlign = 'center';
+    ctx.fillText('Y', 0, -size/2 - 10);
+    ctx.fillText('X', size/2 + 10, 4);
+
+    ctx.restore();
+}
+
+function drawArrowHead(x, y, angle, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-6, -3);
+    ctx.lineTo(-6, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawScaleBar(colors) {
+    if (!currentMesh) return;
+
+    // Calculate a good scale unit (1, 2, 5 * 10^n)
+    const targetPx = 100; // Desired width in pixels
+    const worldDist = targetPx / view.zoom;
+    
+    const exponent = Math.floor(Math.log10(worldDist));
+    const base = worldDist / Math.pow(10, exponent);
+    
+    let unit;
+    if (base < 1.5) unit = 1;
+    else if (base < 3.5) unit = 2;
+    else if (base < 7.5) unit = 5;
+    else unit = 10;
+    
+    const scaleValue = unit * Math.pow(10, exponent);
+    const scalePx = scaleValue * view.zoom;
+
+    const padding = 20;
+    const bottom = canvas.height / (window.devicePixelRatio || 1) - padding;
+    const right = canvas.width / (window.devicePixelRatio || 1) - padding;
+
+    ctx.save();
+    ctx.strokeStyle = colors.textPrimary;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(right - scalePx, bottom - 5);
+    ctx.lineTo(right - scalePx, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.lineTo(right, bottom - 5);
+    ctx.stroke();
+
+    ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.fillStyle = colors.textPrimary;
+    ctx.textAlign = 'center';
+    ctx.fillText(scaleValue.toPrecision(2), right - scalePx/2, bottom - 10);
+    ctx.restore();
+}
+
+function drawMouseCoordinates(colors) {
+    const world = canvasToWorld(view.mouseX, view.mouseY);
+    const padding = 20;
+    const top = padding + 15;
+    const left = padding;
+
+    ctx.save();
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    
+    const textX = `X: ${world.x.toFixed(4)}`;
+    const textY = `Y: ${world.y.toFixed(4)}`;
+    const width = Math.max(ctx.measureText(textX).width, ctx.measureText(textY).width) + 10;
+    
+    // Background Box
+    ctx.fillStyle = colors.labelBg;
+    ctx.fillRect(left - 5, top - 12, width, 32);
+    ctx.strokeStyle = colors.border || colors.mesh;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(left - 5, top - 12, width, 32);
+
+    ctx.fillStyle = colors.textPrimary;
+    ctx.textAlign = 'left';
+    ctx.fillText(textX, left, top);
+    ctx.fillText(textY, left, top + 15);
+    ctx.restore();
 }
 
 init();

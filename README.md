@@ -2,27 +2,31 @@
 
 A high-performance, interactive 2D Finite Volume Method (FVM) mesh explorer and topology analysis suite. Designed for CFD engineers and researchers to visualize and verify complex unstructured meshes with ease.
 
-![FVM Mesh Explorer](https://via.placeholder.com/800x450.png?text=FVM+2D+Mesh+Explorer+Preview) <!-- Replace with actual screenshot when uploaded to GitHub -->
+![FVM Mesh Explorer](docs/images/preview.png)
 
 ## Key Features
 
-- **High-Performance Rendering**: Optimized for meshes with **0.1M+ cells**, maintaining a fluid **60FPS** interface.
-- **Parallel Processing**:
-  - **C++ Backend**: Utilizes **OpenMP** for near-instant topology building using a high-speed sort-and-match algorithm.
-  - **JS Frontend**: Offloads mesh parsing and topology generation to **Web Workers** to keep the UI responsive.
-- **Physical Zone Visualization**: 🎨 Interactive coloring and labeling of physical groups (zones) defined in Gmsh. 
-## Technical Highlights
+- **High-Performance Rendering**: Optimized for meshes with **0.1M+ cells**, with viewport culling and level-of-detail (LOD) rendering.
+- **Advanced Diagnostics Suite**:
+  - **Mesh Quality Heatmap**: Real-time **Aspect Ratio** analysis with a Green-to-Red color gradient.
+  - **Boundary support (▥)**: Full parsing of **Inlet, Outlet, and Wall** physical groups with categorized sidebar controls and selective highlighting.
+  - **Face Normals (↗)**: Visualization of FVM orientation vectors for flux consistency verification.
+- **Spatial Orientation & Measurement**:
+  - **Interactive Ruler (📏)**: Click-to-click measurement of world-space distances and coordinate deltas ($\Delta X, \Delta Y$).
+  - **Dynamic Scale Bar**: Auto-adjusting physical context indicator.
+  - **Axis Compass**: Fixed-position orientation indicator in the canvas viewport.
+- **Professional Analytics UI**: Grouped control sets (**View, Analyze, Tools**) with a sleek "Industrial Slate" aesthetic and **Glassmorphism** overlays.## Technical Highlights
 
-- **Face-Based Topology**: Implements standard CFD connectivity (Face-to-Cell, Cell-to-Face, Face-to-Node) used in solvers like OpenFOAM.
+- **Face-Based Topology**: Implements standard CFD connectivity (Face-to-Cell, Cell-to-Face, Face-to-Node) for flux-based solvers.
 - **Advanced Interactions**:
-  - **Zoom to Area Selection**: Drag a rectangle to instantly zoom into mesh details.
-  - **Universal Hit-Test**: Point-in-polygon selection for any cell (Triangle, Quad, etc.).
-  - **Search by ID**: Quickly locate specific elements in massive datasets.
-- **User Interface**:
-  - **Dynamic Theme Icons**: ☀️/🌙 icons for high-contrast Dark and Light modes.
-  - **Professional Aesthetics**: Minimalist, functional emoji set for intuitive navigation.
-  - **High-DPI Support**: Razor-sharp rendering on high-resolution displays.
-- **Multi-Format Support**: Native support for **Gmsh .msh (v2.2)** files.
+  - **Area Zoom (⚲)**: Precision bounding-box selection for focused inspection.
+  - **Universal Hit-Test**: Point-in-polygon selection for hybrid meshes (Triangles, Quads).
+  - **Live Coordinates**: Precision readout of world-space mouse position.
+- **Professional Branding**:
+  - **Industrial Slate Palette**: Sleek GitHub-inspired color tokens tailored for engineering applications.
+  - **Minimalist Iconography**: Technical unicode symbols replace generic emojis for a clean dashboard look.
+  - **High-DPI Support**: Vector-based rendering that scales beautifully on high-resolution displays.
+- **Universal Parsing**: Native support for **Gmsh .msh (v2.2)** including physical names for boundaries and internal zones.
 
 ## Technical Stack
 

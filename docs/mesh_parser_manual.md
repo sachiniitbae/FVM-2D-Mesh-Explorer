@@ -25,16 +25,34 @@ The parser stores these in a `std::vector<Node>`. We use **1-based indexing** to
 
 ### `$Elements`
 ```text
-86          // Total number of elements (includes lines/triangles/quads)
-21 2 2 5 1 35 37 38     // Triangle (Type 2)
-22 3 2 5 1 40 41 42 43  // Quad (Type 3)
+86          // Total number of elements
+15 1 2 4 1 10 11        // Line (Type 1) - Boundary
+21 2 2 5 1 35 37 38     // Triangle (Type 2) - Cell
+22 3 2 5 1 40 41 42 43  // Quad (Type 3) - Cell
 ```
-The parser filters for **Type 2 (Triangles)** and **Type 3 (Quads)**. Each element is stored as a `Cell` which knows its nodes and type.
+The parser handles three main types:
+- **Type 2 & 3 (Triangles/Quads)**: Stored as `Cells`. These form the 2D computational domain.
+- **Type 1 (Lines)**: Stored in a `boundaryElements` map. These explicitly define boundary edges (Inlet, Outlet, etc.) based on physical tags.
 
-### `$PhysicalNames`
-The parser supports mapping internal IDs to human-readable strings. This is used for:
-- **Boundary Conditions**: Mapping specific edges to names like `inlet`, `outlet`.
-- **Physical Zones**: Assigning material properties or sources to regions like `center_disk` or `petals`.
+### `$PhysicalNames` & Mapping
+The parser maps physical tags differently based on element dimensions:
+- **Cell Zones**: High-level regional tags (e.g., "Fluid", "Solid").
+- **Boundaries**: Node-to-node edge keys are used to link Line elements to topological faces created during the match step.
+
+---
+
+## 3. Mesh Quality & Diagnostics
+
+The visualizer computes real-time metrics for every cell to identify numerical instability risks.
+
+### Aspect Ratio (AR)
+Calculated as the ratio of the maximum edge length to the minimum edge length:
+$$ AR = \frac{\max(L_{edge})}{\min(L_{edge})} $$
+- **Ideal (1.0)**: Perfect equilateral triangles or squares.
+- **Critical (> 5.0)**: Highly stretched cells that may lead to poor solver convergence.
+
+### Face Normals
+For each face, the parser computes the geometric normal vector $\mathbf{n}$ pointing from the `owner` to the `neighbor`. This is visualized as an arrow $\vec{V}$ at the face midpoint.
 
 ---
 

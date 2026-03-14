@@ -12,20 +12,29 @@
 
 <body>
     <div class="app-container">
-        <header>
-            <div class="logo">
-                <span class="icon">🌐</span>
-                <h1>FVM 2D Mesh Explorer</h1>
-            </div>
-            <div class="controls">
-                <button id="theme-toggle" class="btn btn-theme" title="Toggle Light/Dark Mode">🌙</button>
-                <button id="zones-toggle" class="btn btn-secondary" title="Visualize Physical Zones">🎨 Zones</button>
-                <button id="zoom-toggle" class="btn btn-secondary" title="Zoom to Area Selection">🔍 Area</button>
-                <label for="file-upload" class="btn btn-primary">
-                    <span>Upload .msh</span>
-                    <input type="file" id="file-upload" accept=".msh" hidden>
-                </label>
-                <button id="reset-view" class="btn btn-secondary">Reset View</button>
+            <div class="controls-wrapper">
+                <div class="control-group" data-label="File">
+                    <label for="file-upload" class="btn btn-primary" title="Upload .msh mesh">
+                        <span>↑ Upload</span>
+                        <input type="file" id="file-upload" accept=".msh" hidden>
+                    </label>
+                </div>
+
+                <div class="control-group" data-label="View">
+                    <button id="reset-view" class="btn btn-secondary" title="Reset Camera">⊙ Reset</button>
+                    <button id="zoom-toggle" class="btn btn-secondary" title="Area Selection">⚲ Zoom</button>
+                </div>
+
+                <div class="control-group" data-label="Analyze">
+                    <button id="quality-toggle" class="btn btn-secondary" title="Mesh Quality Heatmap">▤ Quality</button>
+                    <button id="zones-toggle" class="btn btn-secondary" title="Physical Zones">▥ Zones</button>
+                    <button id="normals-toggle" class="btn btn-secondary" title="Face Normals">↗ Normals</button>
+                </div>
+
+                <div class="control-group" data-label="Tools">
+                    <button id="ruler-toggle" class="btn btn-secondary" title="Measurement Tool">📏 Ruler</button>
+                    <button id="theme-toggle" class="btn btn-theme" title="Toggle Theme">◐</button>
+                </div>
             </div>
         </header>
 
@@ -34,6 +43,15 @@
                 <canvas id="mesh-canvas"></canvas>
                 <div id="overlay-hints" class="hint">
                     Drag and drop a .msh file here to explore
+                </div>
+                <div id="quality-legend" class="legend hidden">
+                    <div class="legend-title">Aspect Ratio</div>
+                    <div class="legend-scale">
+                        <span class="l-item green">1.0</span>
+                        <span class="l-item yellow">2.0</span>
+                        <span class="l-item orange">5.0</span>
+                        <span class="l-item red">10+</span>
+                    </div>
                 </div>
                 <div id="status-overlay" class="status-overlay hidden">
                     <div class="status-card">
@@ -52,6 +70,13 @@
                     <div class="search-container">
                         <input type="number" id="cell-search-input" placeholder="Search Cell ID..." min="1">
                         <button id="cell-search-btn" class="btn-icon">🔍</button>
+                    </div>
+                </section>
+
+                <section class="info-section">
+                    <h3>Physical Groups</h3>
+                    <div id="physical-groups-list" class="tag-list">
+                        <!-- Populated dynamically -->
                     </div>
                 </section>
 
